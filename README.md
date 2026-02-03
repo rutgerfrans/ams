@@ -1,13 +1,23 @@
-# BTVA — Basic Tactical Voting Analyst (AMS Lab)
+# TVA — Tactical Voting Analyst (AMS Lab)
 
 This repository contains a **basic scaffold** for the *Strategic Voting* lab of **Agents and Multi-Agent Systems (KEN 4111)**.
 
-The goal of the assignment is to implement a **Tactical Voting Analyst (TVA)**. In particular, this codebase focuses on the **Basic TVA (BTVA)** variant described in the assignment:
+The goal of the assignment is to implement a **Tactical Voting Analyst (TVA)**.
 
-- single-voter manipulation only (no collusion)
+This codebase currently implements the **Basic TVA (BTVA)** foundations and is being extended towards **ATVA-1** (the assignment’s *Advanced TVA* variant that drops limitation 1: *single-voter-only manipulation*, i.e. it considers **collusion**).
+
+### BTVA assumptions (from the assignment)
+
+- single-voter manipulation only (**no collusion**)
 - no counter-strategic voting
 - perfect knowledge of true preferences
 - only one voter votes strategically at a time
+
+### ATVA-1 change (minimum ATVA)
+
+ATVA-1 drops the first limitation: it **does** consider voter collusion (but still keeps the other three limitations).
+
+> Note: per the assignment, an “ATVA-x” drops *exactly one* of the four BTVA limitations.
 
 ## What the assignment expects (high level)
 
@@ -18,7 +28,7 @@ A BTVA takes:
 2. A **voting situation**: true preference lists of $n$ voters over $m$ alternatives (constraints: $m,n>2$)
 
 ### Output
-For a given voting scheme and voting situation, a BTVA should produce:
+For a given voting scheme and voting situation, a BTVA (and hence also our ATVA-1 extension) should produce:
 
 1. Non-strategic voting outcome $O$
 2. Per-voter happiness levels $H_i$ (definition chosen by you)
@@ -30,9 +40,9 @@ For a given voting scheme and voting situation, a BTVA should produce:
 
 - `btva/` — package code
 	- `models.py` — core data models and validation (`VotingScheme`, `VotingSituation`)
-	- `parsing.py` — JSON input parsing
+	- `parsing.py` — JSON input parsing (assignment format)
 	- `voting.py` — voting scheme implementation (score vectors, tallying, tie-breaking)
-- `tests/` — unit tests (currently: voting scheme tests)
+- `tests/` — unit tests
 - `Strategic_Voting_Description.pdf` — assignment description
 - `pyproject.toml` — Python project config
 
@@ -48,9 +58,11 @@ The 4 required voting schemes are implemented in `btva/voting.py` using the posi
 
 Tie-breaking is **deterministic**: for equal top score, the winner is the alternative that comes first in **lexicographical order** (`A < B < C < …`).
 
-## Input format (current)
+## Input format
 
-Right now, `btva/parsing.py` supports an easy-to-edit **JSON** input format.
+`btva/parsing.py` supports an easy-to-edit **JSON** input format (scheme + strict complete rankings).
+
+Only the assignment-style strict rankings are supported (no tied ranks / truncated ballots).
 
 Example `input.json`:
 
@@ -87,6 +99,18 @@ This is a plain Python project. A virtual environment already exists in `.venv/`
 .venv/bin/python -m pytest
 ```
 
+## Run the CLI
+
+The project defines a console script called `btva`.
+
+### JSON input
+
+```bash
+.venv/bin/btva input.json
+```
+
+Add `--show-scores` to print the full score table.
+
 ## Progress (status at the end)
 
 ### Completed
@@ -94,10 +118,12 @@ This is a plain Python project. A virtual environment already exists in `.venv/`
 - [x] Implemented and tested the 4 voting schemes
 - [x] Implemented deterministic tie-breaking (lexicographic)
 - [x] JSON input parsing + voting situation validation
+- [x] Minimal CLI to run a scheme and show winner/scores
 
 ### In progress / next
-- [ ] CLI runner that prints the 5 required output bullet points
+- [ ] Expand CLI output into a full TVA “report” (all 5 required outputs)
 - [ ] Define and implement the happiness function $H_i$
-- [ ] Implement strategic option generation per voter ($S_i$): compromise/bury + bullet (with scheme constraints)
+- [ ] Implement BTVA strategic option enumeration per voter ($S_i$): compromise/bury + bullet (with scheme constraints)
 - [ ] Define and implement “risk of strategic voting” measure
+- [ ] **ATVA-1 (collusion)**: extend strategic option enumeration from single voter to coalitions (keep other BTVA assumptions)
 - [ ] Add end-to-end tests for the report output
