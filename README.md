@@ -82,6 +82,8 @@ Rules/assumptions:
 - Rankings must be **complete** (each ballot must contain every candidate exactly once).
 - If a ballot contains `=` (tied ranks/indifference), we **linearize** it by converting `=` to `>` while keeping the left-to-right order.
 	- Example: `1:4>1>3>2=0` is treated as `1:4>1>3>2>0`.
+- If a ballot is **truncated** (doesn’t list all candidates), we append the missing candidates at the bottom in ascending candidate-id order.
+	- Example (4 candidates): `1:1>2` is treated as `1:1>2>0>3`.
 
 ## Development setup
 

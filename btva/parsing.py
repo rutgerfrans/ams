@@ -73,6 +73,17 @@ def load_input_file(path: str | Path) -> ParsedInput:
     ranking_str = ranking_str.replace("=", ">")
 
     alts = [a.strip() for a in ranking_str.split(">") if a.strip()]
+
+    # If ballots are truncated, append missing candidates deterministically.
+    # This keeps the TVA input compatible with the assignment's strict
+    # preference lists while allowing dataset files to omit bottom-ranked
+    # alternatives.
+    if m_alts is not None:
+      expected = [str(i) for i in range(m_alts)]
+      seen = set(alts)
+      missing = [a for a in expected if a not in seen]
+      alts = alts + missing
+
     voters.extend([tuple(alts)] * count)
 
   if m_alts is None:
@@ -85,6 +96,8 @@ def load_input_file(path: str | Path) -> ParsedInput:
       raise ValueError(f"Ballot does not rank exactly {m_alts} candidates: {ballot}")
     if set(ballot) != expected_set:
       raise ValueError(f"Ballot candidates don't match expected 0..{m_alts-1}: {ballot}")
+    if len(set(ballot)) != len(ballot):
+      raise ValueError(f"Ballot contains duplicate candidates after parsing: {ballot}")
 
   situation = VotingSituation(tuple(voters))
   situation.validate()

@@ -41,3 +41,22 @@ def test_load_abif_linearizes_ties(tmp_path: Path) -> None:
 
     parsed = load_input_file(p)
     assert parsed.situation.voters_preferences[0] == ("2", "1", "0")
+
+
+def test_load_abif_appends_missing_candidates(tmp_path: Path) -> None:
+    content = """\
+# 4 candidates
+=0 : [0]
+=1 : [1]
+=2 : [2]
+=3 : [3]
+1:1>2
+1:3>2>0>1
+1:2>3>0>1
+"""
+    p = tmp_path / "truncated.abif"
+    p.write_text(content, encoding="utf-8")
+
+    parsed = load_input_file(p)
+    # First ballot truncated: missing {0,3} appended in ascending order.
+    assert parsed.situation.voters_preferences[0] == ("1", "2", "0", "3")
