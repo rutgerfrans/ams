@@ -4,8 +4,8 @@ import argparse
 from pathlib import Path
 
 from .models import VotingScheme
+from .analysis import run_btva
 from .parsing import load_input_file
-from .voting import tally_votes
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -40,13 +40,15 @@ def main(argv: list[str] | None = None) -> int:
     parsed = load_input_file(Path(args.input))
     scheme: VotingScheme = VotingScheme(args.scheme)
 
-    outcome = tally_votes(scheme, parsed.situation)
+    result = run_btva(scheme, parsed.situation)
 
-    print(f"scheme: {outcome.scheme.value}")
-    print(f"winner: {outcome.winner}")
+    print(f"scheme: {result.outcome.scheme.value}")
+    print(f"winner: {result.outcome.winner}")
+    print(f"H_i: {list(result.happiness.per_voter)}")
+    print(f"H: {result.happiness.total}")
     if args.show_scores:
-        for alt in sorted(outcome.scores):
-            print(f"{alt}: {outcome.scores[alt]}")
+        for alt in sorted(result.outcome.scores):
+            print(f"{alt}: {result.outcome.scores[alt]}")
 
     return 0
 
