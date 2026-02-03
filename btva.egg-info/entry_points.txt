@@ -1,0 +1,2 @@
+[console_scripts]
+btva = btva.cli:main

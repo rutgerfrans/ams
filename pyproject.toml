@@ -1,0 +1,22 @@
+[project]
+name = "btva"
+version = "0.1.0"
+description = "Basic Tactical Voting Analyst (BTVA) scaffold for AMS strategic voting lab."
+requires-python = ">=3.10"
+readme = "README.md"
+authors = [{ name = "AMS group" }]
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0"]
+
+[project.scripts]
+btva = "btva.cli:main"
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"

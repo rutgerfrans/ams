@@ -1,0 +1,13 @@
+README.md
+pyproject.toml
+btva/__init__.py
+btva/models.py
+btva/parsing.py
+btva/voting.py
+btva.egg-info/PKG-INFO
+btva.egg-info/SOURCES.txt
+btva.egg-info/dependency_links.txt
+btva.egg-info/entry_points.txt
+btva.egg-info/requires.txt
+btva.egg-info/top_level.txt
+tests/test_voting.py
