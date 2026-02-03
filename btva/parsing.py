@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -15,41 +14,85 @@ class ParsedInput:
 
 
 def load_input_file(path: str | Path) -> ParsedInput:
-  """Load an input file describing scheme + voting situation.
+  """Load an ABIF-like preference profile.
 
-  Supported formats:
-  - Our project JSON format (strict complete rankings).
+  This project only supports a strict-ranking input format aligned with the
+  assignment's preference-matrix notion.
 
-  Expected format:
-  {
-    "voting_scheme": "plurality"|"vote_for_two"|"anti_plurality"|"borda",
-    "voting_situation": {
-      "voters": [
-        ["C","B","A"],
-        ["A","C","B"],
-        ...
-      ]
-    },
-    "strategies": {
-      "enable": ["compromise_or_bury", "bullet"],
-      "max_swaps": 1
-    }
-  }
+  Expected file shape (example):
 
-  Note: the `strategies` block is accepted but not acted upon yet.
+  # 5 candidates
+  =0 : [0]
+  =1 : [1]
+  ...
+  1:4>2>3>1>0
+  1:3>1>4>2>0
+
+  Ballot lines are `count:ranking` where `ranking` is an order using `>`.
+
+  Some dataset files include `=` inside a ballot to indicate indifference (tie),
+  e.g. `2=0`. The assignment's preference-matrix input assumes strict rankings,
+  so we *linearize* such ties deterministically by replacing `=` with `>` and
+  keeping the left-to-right order as written in the file.
+
+  Note: the scheme is not present in this format; the CLI must provide it.
   """
 
   p = Path(path)
-  raw = json.loads(p.read_text(encoding="utf-8"))
+  if p.suffix.lower() != ".abif":
+    raise ValueError("Only .abif input files are supported")
 
-  scheme = VotingScheme(raw["voting_scheme"])
-  voters = tuple(tuple(v) for v in raw["voting_situation"]["voters"])
-  situation = VotingSituation(voters)
+  text = p.read_text(encoding="utf-8")
+  m_alts: int | None = None
+  voters: list[tuple[str, ...]] = []
+
+  for raw_line in text.splitlines():
+    line = raw_line.strip()
+    if not line:
+      continue
+
+    if line.startswith("#"):
+      # Example: "# 5 candidates"
+      parts = line[1:].strip().split()
+      if parts and parts[0].isdigit():
+        m_alts = int(parts[0])
+      continue
+
+    # Candidate mapping lines like "=3 : [3]" are not needed for our model;
+    # we identify alternatives by their numeric ids as strings.
+    if line.startswith("="):
+      continue
+
+    if ":" not in line:
+      raise ValueError(f"Invalid ballot line (missing ':'): {line}")
+    count_str, ranking_str = line.split(":", 1)
+    count = int(count_str.strip())
+    ranking_str = ranking_str.strip()
+
+    # Linearize ballot ties (e.g. "2=0") into a strict order "2>0".
+    ranking_str = ranking_str.replace("=", ">")
+
+    alts = [a.strip() for a in ranking_str.split(">") if a.strip()]
+    voters.extend([tuple(alts)] * count)
+
+  if m_alts is None:
+    raise ValueError("Missing '# <m> candidates' header")
+
+  expected = tuple(str(i) for i in range(m_alts))
+  expected_set = set(expected)
+  for ballot in voters:
+    if len(ballot) != m_alts:
+      raise ValueError(f"Ballot does not rank exactly {m_alts} candidates: {ballot}")
+    if set(ballot) != expected_set:
+      raise ValueError(f"Ballot candidates don't match expected 0..{m_alts-1}: {ballot}")
+
+  situation = VotingSituation(tuple(voters))
   situation.validate()
 
-  return ParsedInput(scheme=scheme, situation=situation)
+  # Placeholder scheme; caller (CLI) should override.
+  return ParsedInput(scheme=VotingScheme.PLURALITY, situation=situation)
 
 
 def load_strategies_block(path: str | Path) -> dict[str, Any]:
-    raw = json.loads(Path(path).read_text(encoding="utf-8"))
-    return raw.get("strategies", {})
+  # No strategies block in .abif input format for this project.
+  return {}

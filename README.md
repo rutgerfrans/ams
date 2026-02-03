@@ -40,7 +40,7 @@ For a given voting scheme and voting situation, a BTVA (and hence also our ATVA-
 
 - `btva/` — package code
 	- `models.py` — core data models and validation (`VotingScheme`, `VotingSituation`)
-	- `parsing.py` — JSON input parsing (assignment format)
+	- `parsing.py` — `.abif` input parsing (assignment-style strict rankings)
 	- `voting.py` — voting scheme implementation (score vectors, tallying, tie-breaking)
 - `tests/` — unit tests
 - `Strategic_Voting_Description.pdf` — assignment description
@@ -58,36 +58,30 @@ The 4 required voting schemes are implemented in `btva/voting.py` using the posi
 
 Tie-breaking is **deterministic**: for equal top score, the winner is the alternative that comes first in **lexicographical order** (`A < B < C < …`).
 
-## Input format
+## Input format (`.abif`)
 
-`btva/parsing.py` supports an easy-to-edit **JSON** input format (scheme + strict complete rankings).
+This project expects voting situations in an **ABIF-like** text format (files named like `sv_poll_1.abif`).
 
-Only the assignment-style strict rankings are supported (no tied ranks / truncated ballots).
+Minimal example:
 
-Example `input.json`:
-
-```json
-{
-	"voting_scheme": "borda",
-	"voting_situation": {
-		"voters": [
-			["A", "B", "C"],
-			["A", "C", "B"],
-			["B", "A", "C"]
-		]
-	},
-	"strategies": {
-		"enable": ["compromise_or_bury", "bullet"],
-		"max_swaps": 1
-	}
-}
+```text
+# 5 candidates
+=0 : [0]
+=1 : [1]
+=2 : [2]
+=3 : [3]
+=4 : [4]
+1:4>2>3>1>0
+1:3>1>4>2>0
 ```
 
-Notes:
+Rules/assumptions:
 
-- Each voter must rank **exactly the same alternatives**.
-- Constraints are enforced: **$m,n>2$**.
-- The `strategies` block is accepted in the JSON but is not acted upon yet (it will be used when implementing strategic option enumeration).
+- The first line declares the number of candidates: `# <m> candidates`.
+- Ballots are `count:ranking`.
+- Rankings must be **complete** (each ballot must contain every candidate exactly once).
+- If a ballot contains `=` (tied ranks/indifference), we **linearize** it by converting `=` to `>` while keeping the left-to-right order.
+	- Example: `1:4>1>3>2=0` is treated as `1:4>1>3>2>0`.
 
 ## Development setup
 
@@ -103,13 +97,11 @@ This is a plain Python project. A virtual environment already exists in `.venv/`
 
 The project defines a console script called `btva`.
 
-### JSON input
+### `.abif` input
 
 ```bash
-.venv/bin/btva input.json
+.venv/bin/btva path/to/sv_poll_1.abif --scheme borda --show-scores
 ```
-
-Add `--show-scores` to print the full score table.
 
 ## Progress (status at the end)
 

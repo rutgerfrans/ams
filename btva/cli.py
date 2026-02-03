@@ -17,7 +17,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "input",
         type=str,
-        help="Path to JSON input file in the project format.",
+        help="Path to an .abif input file.",
+    )
+    p.add_argument(
+        "--scheme",
+        required=True,
+        choices=[s.value for s in VotingScheme],
+        help="Voting scheme to apply (required because .abif inputs do not include the scheme).",
     )
     p.add_argument(
         "--show-scores",
@@ -32,7 +38,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     parsed = load_input_file(Path(args.input))
-    scheme: VotingScheme = parsed.scheme
+    scheme: VotingScheme = VotingScheme(args.scheme)
 
     outcome = tally_votes(scheme, parsed.situation)
 
@@ -43,3 +49,6 @@ def main(argv: list[str] | None = None) -> int:
             print(f"{alt}: {outcome.scores[alt]}")
 
     return 0
+
+if __name__ == "__main__":
+    raise SystemExit(main())
