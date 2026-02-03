@@ -61,3 +61,6 @@ def tally_votes(scheme: VotingScheme, situation: VotingSituation) -> VotingOutco
     winner = sorted(winners)[0]
 
     return VotingOutcome(scheme=scheme, scores=scores, winner=winner)
+
+
+__all__ = ["VotingOutcome", "tally_votes", "scoring_vector"]
