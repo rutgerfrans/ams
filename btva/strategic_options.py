@@ -28,7 +28,7 @@ class StrategicOption:
     """
 
     voter_index: int
-    # Distinguishes which tactic generated this option (e.g. "permutation", "bullet").
+    # Distinguishes which tactic generated this option (e.g. "compromising_burying", "bullet").
     strategy_kind: str
     tactical_ballot: StrategicBallot
 

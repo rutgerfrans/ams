@@ -102,7 +102,7 @@ The project defines a console script called `btva`.
 ### `.abif` input
 
 ```bash
-.venv/bin/btva path/to/sv_poll_1.abif --scheme borda --show-scores
+.venv/bin/btva path/to/sv_poll_1.abif --scheme borda
 ```
 
 ### CLI arguments
@@ -111,23 +111,64 @@ The `btva` command accepts the following arguments and options:
 
 - `input` (positional): Path to an `.abif` input file containing the voting situation.
 - `--scheme` (required): Voting scheme to apply. One of: `plurality`, `vote_for_two`, `anti_plurality`, `borda`.
+
 Note: the CLI always runs the strategic analysis and prints scores and (optionally limited) strategy tuples.
-`--max-m <int>`: Safety cap for permutation enumeration. If the number of alternatives `m` is greater than `max-m`, permutation enumeration is skipped (default: `8`).
-- `--strategy-limit <int>`: Maximum number of strategic options to print per voter when `--show-strategies` is used. Use `-1` for no limit (default: `-1`, i.e. print everything).
- `--strategy-limit <int>`: Maximum number of strategic options to print per voter. Use `-1` for no limit (default: `-1`, i.e. print everything).
- `--profitable1`: When enumerating strategies, filter `S_i` to options with `H~_i > H_i` (strictly profitable for the voter).
- `--profitable2`: When enumerating strategies, filter `S_i` to options with `H~_i >= H_i` (non-worsening or profitable for the voter).
+
+- `--max-m <int>`: Safety cap for compromising/burying (full-ranking permutations) enumeration. If the number of alternatives `m` is greater than `max-m`, compromising/burying enumeration is skipped (default: `8`).
+- `--strategy-limit <int>`: Maximum number of strategic options to print per voter. Use `-1` for no limit (default: `-1`, i.e. print everything).
+- `--profitable`: Filter the *displayed* options in each printed set `S_i` to those with `H~_i > H_i` (strictly profitable for the voter). (Risk is still computed over the full, unfiltered option set.)
+- `--risk-method <name>`: Choose the risk evaluation function. One of:
+	 - `avg_gain_all_options`
+	 - `fraction_change_winner`
+
+### Risk evaluation functions
+
+This project supports two (simple) risk metrics. Both are computed from the full set of enumerated strategy options $S_i$ (i.e. they do **not** depend on whether you pass `--profitable`, which only changes what gets printed).
+
+#### `avg_gain_all_options`
+
+Definition:
+
+Average gain over all enumerated strategy options:
+$$
+	ext{risk} = \frac{1}{|S|} \sum_{i} \sum_{s_{ij} \in S_i} (\tilde H_i - H_i)
+$$
+
+Pros:
+- Gives a single number that reflects the *average incentive* across the whole option space.
+- Uses all data you already computed, so it tends to be stable for small profiles.
+
+Cons:
+- Can be diluted by many “bad” options (negative gains). A voter having a single very good option might not show up strongly.
+- Depends on how you enumerate options (if you enumerate *all* permutations, you heavily weight that space).
+
+#### `fraction_change_winner`
+
+Definition:
+
+Fraction of voters that can change the winner with at least one option:
+$$
+	ext{risk} = \frac{1}{n} \left| \{ i \mid \exists s_{ij} \in S_i : \tilde O \neq O \} \right|
+$$
+
+Pros:
+- Directly measures the *impact on the election outcome* (winner changes), which is often what we care about.
+- Easy to explain and compare between voting rules.
+
+Cons:
+- Ignores *how much* an outcome improves/worsens happiness; it’s only about whether the winner changes.
+- A winner change might happen even when it does not benefit the strategic voter.
 Example usages:
 
 ```bash
 # Print winner and scores using Borda
-.venv/bin/btva voting_scenarios/sv_poll_1.abif --scheme borda --show-scores
+.venv/bin/btva voting_scenarios/sv_poll_1.abif --scheme borda
 
 # Enumerate strategies but only show profitable options
-.venv/bin/btva voting_scenarios/sv_poll_3.abif --scheme vote_for_two --enumerate-strategies --show-strategies --profitable
+.venv/bin/btva voting_scenarios/sv_poll_3.abif --scheme vote_for_two --profitable
 
 # Enumerate strategies and print at most 10 options per voter
-.venv/bin/btva voting_scenarios/sv_poll_5.abif --scheme anti_plurality --enumerate-strategies --show-strategies --strategy-limit 10
+.venv/bin/btva voting_scenarios/sv_poll_5.abif --scheme anti_plurality --strategy-limit 10
 ```
 
 ## Progress (status at the end)

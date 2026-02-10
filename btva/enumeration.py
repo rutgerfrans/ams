@@ -45,7 +45,7 @@ def enumerate_all_permutations_options_for_voter(
 
         tactical = StrategicBallot(
             voter_index=voter_index,
-            kind="permutation",
+            kind="compromising_burying",
             preferences=tuple(perm),
         )
 
@@ -53,9 +53,9 @@ def enumerate_all_permutations_options_for_voter(
         happy = borda_happiness_for_outcome(situation, out.winner)
 
         options.append(
-            StrategicOption(
+                StrategicOption(
                 voter_index=voter_index,
-                strategy_kind="permutation",
+                strategy_kind="compromising_burying",
                 tactical_ballot=tactical,
                 strategic_outcome=out.winner,
                 baseline_outcome=baseline_outcome.winner,

@@ -4,7 +4,7 @@ import argparse
 from pathlib import Path
 
 from .models import VotingScheme
-from .analysis import run_btva, run_btva_with_strategies
+from .analysis import compute_risk, run_btva, run_btva_with_strategies
 from .parsing import load_input_file
 
 
@@ -34,14 +34,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     p.add_argument(
-        "--profitable1",
+        "--profitable",
         action="store_true",
         help="Filter S_i to options with H~_i > H_i (strictly profitable for the voter).",
-    )
-    p.add_argument(
-        "--profitable2",
-        action="store_true",
-        help="Filter S_i to options with H~_i >= H_i (profitable or non-worsening for the voter).",
     )
     p.add_argument(
         "--strategy-limit",
@@ -52,6 +47,17 @@ def build_parser() -> argparse.ArgumentParser:
             "Use -1 for no limit (default: -1)."
         ),
     )
+
+    p.add_argument(
+        "--risk-method",
+        choices=["avg_gain_all_options", "fraction_change_winner"],
+        default="avg_gain_all_options",
+        help=(
+            "Risk evaluation function to use. "
+            "avg_gain_all_options averages (H~_i - H_i) across all options; "
+            "fraction_change_winner returns the fraction of voters who can change the winner with some option."
+        ),
+    )
     return p
 
 
@@ -59,9 +65,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
-    # Validate profitable flags: not both at the same time.
-    if args.profitable1 and args.profitable2:
-        parser.error("--profitable1 and --profitable2 are mutually exclusive; pick one.")
+    # Single profitable flag (strict profitable: H~_i > H_i)
 
     parsed = load_input_file(Path(args.input))
     scheme: VotingScheme = VotingScheme(args.scheme)
@@ -80,16 +84,20 @@ def main(argv: list[str] | None = None) -> int:
 
     # Print strategic option summaries and the full option tuples (subject to --strategy-limit).
     assert result.strategic_options is not None
-    for voter_idx, options in result.strategic_options.items():
+    # Risk should always be computed on the *unfiltered* option sets.
+    unfiltered_options_by_voter = result.strategic_options
+
+    # The options we display can be filtered (e.g., --profitable).
+    shown_options_by_voter: dict[int, list] = {}
+    for voter_idx, options in unfiltered_options_by_voter.items():
         # Optionally filter to profitable options for the voter.
-        if args.profitable1:
+        if args.profitable:
             # Strictly profitable
             filtered_options = [opt for opt in options if opt.H_tilde_i > opt.H_i]
-        elif args.profitable2:
-            # Non-worsening or profitable
-            filtered_options = [opt for opt in options if opt.H_tilde_i >= opt.H_i]
         else:
             filtered_options = options
+
+        shown_options_by_voter[voter_idx] = filtered_options
 
         by_kind: dict[str, int] = {}
         for opt in filtered_options:
@@ -114,10 +122,20 @@ def main(argv: list[str] | None = None) -> int:
                 f"O~={opt.strategic_outcome} H~_i={opt.H_tilde_i} H_i={opt.H_i} H~={opt.H_tilde} H={opt.H}"
             )
 
+    # Print risk summary based on the options (always unfiltered; independent of --profitable).
+    risk = compute_risk(unfiltered_options_by_voter, method=args.risk_method)
+    by_kind = risk.get("by_strategy_kind", {})
+    if isinstance(by_kind, dict) and by_kind:
+        breakdown = ", ".join(f"{k}={v:.4g}" for k, v in sorted(by_kind.items()))
+        breakdown = f" ({breakdown})"
+    else:
+        breakdown = ""
+    print(f"risk ({risk['method']}): {risk['overall']:.4g}{breakdown}")
+
     m = parsed.situation.m_alternatives
     if m > args.max_m:
         print(
-            f"note: m={m} > max-m={args.max_m}, so permutation enumeration was skipped (bullet options only)."
+            f"note: m={m} > max-m={args.max_m}, so compromising_burying enumeration was skipped (bullet options only)."
         )
 
     # scores already printed above (initial outcome)
