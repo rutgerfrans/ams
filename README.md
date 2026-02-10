@@ -105,6 +105,31 @@ The project defines a console script called `btva`.
 .venv/bin/btva path/to/sv_poll_1.abif --scheme borda --show-scores
 ```
 
+### CLI arguments
+
+The `btva` command accepts the following arguments and options:
+
+- `input` (positional): Path to an `.abif` input file containing the voting situation.
+- `--scheme` (required): Voting scheme to apply. One of: `plurality`, `vote_for_two`, `anti_plurality`, `borda`.
+Note: the CLI always runs the strategic analysis and prints scores and (optionally limited) strategy tuples.
+`--max-m <int>`: Safety cap for permutation enumeration. If the number of alternatives `m` is greater than `max-m`, permutation enumeration is skipped (default: `8`).
+- `--strategy-limit <int>`: Maximum number of strategic options to print per voter when `--show-strategies` is used. Use `-1` for no limit (default: `-1`, i.e. print everything).
+ `--strategy-limit <int>`: Maximum number of strategic options to print per voter. Use `-1` for no limit (default: `-1`, i.e. print everything).
+ `--profitable1`: When enumerating strategies, filter `S_i` to options with `H~_i > H_i` (strictly profitable for the voter).
+ `--profitable2`: When enumerating strategies, filter `S_i` to options with `H~_i >= H_i` (non-worsening or profitable for the voter).
+Example usages:
+
+```bash
+# Print winner and scores using Borda
+.venv/bin/btva voting_scenarios/sv_poll_1.abif --scheme borda --show-scores
+
+# Enumerate strategies but only show profitable options
+.venv/bin/btva voting_scenarios/sv_poll_3.abif --scheme vote_for_two --enumerate-strategies --show-strategies --profitable
+
+# Enumerate strategies and print at most 10 options per voter
+.venv/bin/btva voting_scenarios/sv_poll_5.abif --scheme anti_plurality --enumerate-strategies --show-strategies --strategy-limit 10
+```
+
 ## Progress (status at the end)
 
 ### Completed
