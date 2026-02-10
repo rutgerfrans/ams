@@ -29,14 +29,17 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--max-m",
         type=int,
-        default=8,
+        default=20,
         help="Safety cap for --enumerate-strategies: refuse enumeration when m > max-m (default: 8).",
     )
 
     p.add_argument(
         "--profitable",
         action="store_true",
-        help="Filter S_i to options with H~_i > H_i (strictly profitable for the voter).",
+        help=(
+            "Display-only flag: show only tactical options with H~_i > H_i. "
+            "(S_i is defined as tactical options by default; this flag is kept for clarity/backward compatibility.)"
+        ),
     )
     p.add_argument(
         "--strategy-limit",
@@ -84,18 +87,19 @@ def main(argv: list[str] | None = None) -> int:
 
     # Print strategic option summaries and the full option tuples (subject to --strategy-limit).
     assert result.strategic_options is not None
-    # Risk should always be computed on the *unfiltered* option sets.
-    unfiltered_options_by_voter = result.strategic_options
+    # Option A (assignment-aligned): the strategic/tactical option sets S_i contain only
+    # tactical options, i.e. options with H~_i > H_i for the deviating voter.
+    tactical_options_by_voter: dict[int, list] = {
+        voter_idx: [opt for opt in opts if opt.H_tilde_i > opt.H_i]
+        for voter_idx, opts in result.strategic_options.items()
+    }
 
-    # The options we display can be filtered (e.g., --profitable).
+    # The options we display can optionally be filtered further.
     shown_options_by_voter: dict[int, list] = {}
-    for voter_idx, options in unfiltered_options_by_voter.items():
-        # Optionally filter to profitable options for the voter.
-        if args.profitable:
-            # Strictly profitable
-            filtered_options = [opt for opt in options if opt.H_tilde_i > opt.H_i]
-        else:
-            filtered_options = options
+    for voter_idx, options in tactical_options_by_voter.items():
+        # --profitable is now a display flag only: it makes the intent explicit,
+        # but the underlying option sets are already tactical-only.
+        filtered_options = options
 
         shown_options_by_voter[voter_idx] = filtered_options
 
@@ -122,8 +126,8 @@ def main(argv: list[str] | None = None) -> int:
                 f"O~={opt.strategic_outcome} H~_i={opt.H_tilde_i} H_i={opt.H_i} H~={opt.H_tilde} H={opt.H}"
             )
 
-    # Print risk summary based on the options (always unfiltered; independent of --profitable).
-    risk = compute_risk(unfiltered_options_by_voter, method=args.risk_method)
+    # Print risk summary based on tactical options S_i (independent of --profitable).
+    risk = compute_risk(tactical_options_by_voter, method=args.risk_method)
     by_kind = risk.get("by_strategy_kind", {})
     if isinstance(by_kind, dict) and by_kind:
         breakdown = ", ".join(f"{k}={v:.4g}" for k, v in sorted(by_kind.items()))

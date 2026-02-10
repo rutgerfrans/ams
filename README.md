@@ -116,14 +116,14 @@ Note: the CLI always runs the strategic analysis and prints scores and (optional
 
 - `--max-m <int>`: Safety cap for compromising/burying (full-ranking permutations) enumeration. If the number of alternatives `m` is greater than `max-m`, compromising/burying enumeration is skipped (default: `8`).
 - `--strategy-limit <int>`: Maximum number of strategic options to print per voter. Use `-1` for no limit (default: `-1`, i.e. print everything).
-- `--profitable`: Filter the *displayed* options in each printed set `S_i` to those with `H~_i > H_i` (strictly profitable for the voter). (Risk is still computed over the full, unfiltered option set.)
+- `--profitable`: Display-only flag: explicitly show only *tactical* options where `H~_i > H_i`. (By definition, our `S_i` contains only tactical options.)
 - `--risk-method <name>`: Choose the risk evaluation function. One of:
 	 - `avg_gain_all_options`
 	 - `fraction_change_winner`
 
 ### Risk evaluation functions
 
-This project supports two (simple) risk metrics. Both are computed from the full set of enumerated strategy options $S_i$ (i.e. they do **not** depend on whether you pass `--profitable`, which only changes what gets printed).
+This project supports two (simple) risk metrics. We follow the assignment definition of tactical voting: an option is tactical only if it improves the deviating voter’s happiness, i.e. $\tilde H_i > H_i$. Therefore, each $S_i$ contains **only** such tactical options, and the risk metrics are computed from these $S_i$ sets.
 
 #### `avg_gain_all_options`
 
