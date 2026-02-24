@@ -27,8 +27,8 @@ class HappinessResult:
     per_voter: tuple[float, ...]  # (H_1, ..., H_n)
 
     @property
-    def total(self) -> int:
-        return sum(self.per_voter)
+    def total(self) -> float:
+        return float(sum(self.per_voter))
 
 
 def borda_happiness_for_outcome(
