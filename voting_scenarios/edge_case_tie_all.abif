@@ -1,0 +1,15 @@
+# Edge case: perfect tie / symmetric profile
+# 3 candidates, 3 voters. Each candidate gets one 1st-place vote.
+# This forces deterministic lexicographic tie-breaking.
+# Expected winner under all positional rules with equal totals: 0
+# (because scores tie and we break ties lexicographically).
+#
+# m,n > 2 holds.
+#
+# 3 candidates
+=0 : [0]
+=1 : [1]
+=2 : [2]
+1:0>1>2
+1:1>2>0
+1:2>0>1

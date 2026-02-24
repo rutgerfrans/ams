@@ -7,7 +7,7 @@ from typing import Literal
 from .enumeration import enumerate_all_permutations_options
 from .enumeration_bullet import enumerate_bullet_options
 
-from .happiness import HappinessResult, borda_happiness_for_outcome
+from .happiness import HappinessResult, HappinessMetric, happiness_for_outcome
 from .models import VotingScheme, VotingSituation
 from .strategic_options import StrategicOption
 from .voting import VotingOutcome, tally_votes
@@ -112,11 +112,18 @@ def compute_risk(
     raise ValueError(f"Unknown risk method: {method}")
 
 
-def run_btva(scheme: VotingScheme, situation: VotingSituation) -> BtvaResult:
+def run_btva(
+    scheme: VotingScheme,
+    situation: VotingSituation,
+    *,
+    happiness_metric: HappinessMetric = HappinessMetric.BORDA,
+) -> BtvaResult:
     """Compute outcome O and happiness values H_i (and total H)."""
 
     voting_outcome = tally_votes(scheme, situation)
-    happiness = borda_happiness_for_outcome(situation, voting_outcome.winner)
+    happiness = happiness_for_outcome(
+        situation, voting_outcome.winner, metric=happiness_metric
+    )
     return BtvaResult(outcome=voting_outcome, happiness=happiness)
 
 
@@ -126,6 +133,7 @@ def run_btva_with_strategies(
     *,
     include_no_change: bool = False,
     max_m: int = 8,
+    happiness_metric: HappinessMetric = HappinessMetric.BORDA,
 ) -> BtvaResult:
     """Compute O, H_i, H plus strategic option sets S_i (step 4).
 
@@ -134,7 +142,7 @@ def run_btva_with_strategies(
     m > max_m unless you explicitly raise max_m.
     """
 
-    base = run_btva(scheme, situation)
+    base = run_btva(scheme, situation, happiness_metric=happiness_metric)
 
     m = situation.m_alternatives
     strategic_options: dict[int, list[StrategicOption]] = {
@@ -142,7 +150,9 @@ def run_btva_with_strategies(
     }
 
     # Bullet options are cheap (O(n*m)), so we can always include them.
-    bullet = enumerate_bullet_options(scheme, situation)
+    bullet = enumerate_bullet_options(
+        scheme, situation, happiness_metric=happiness_metric
+    )
     for i, opts in bullet.items():
         strategic_options[i].extend(opts)
 
@@ -156,7 +166,10 @@ def run_btva_with_strategies(
         )
 
     perms = enumerate_all_permutations_options(
-        scheme, situation, include_no_change=include_no_change
+        scheme,
+        situation,
+        include_no_change=include_no_change,
+        happiness_metric=happiness_metric,
     )
     for i, opts in perms.items():
         strategic_options[i].extend(opts)

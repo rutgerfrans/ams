@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .happiness import borda_happiness_for_outcome
+from .happiness import HappinessMetric, happiness_for_outcome
 from .models import VotingScheme, VotingSituation
 from .strategic_options import StrategicOption
 from .strategies import StrategicBallot
@@ -11,6 +11,8 @@ def enumerate_bullet_options_for_voter(
     scheme: VotingScheme,
     situation: VotingSituation,
     voter_index: int,
+    *,
+    happiness_metric: HappinessMetric = HappinessMetric.BORDA,
 ) -> list[StrategicOption]:
     """Enumerate bullet-voting options for a single voter.
 
@@ -24,7 +26,9 @@ def enumerate_bullet_options_for_voter(
         return []
 
     baseline_outcome = tally_votes(scheme, situation)
-    baseline_happy = borda_happiness_for_outcome(situation, baseline_outcome.winner)
+    baseline_happy = happiness_for_outcome(
+        situation, baseline_outcome.winner, metric=happiness_metric
+    )
 
     options: list[StrategicOption] = []
     for chosen in situation.alternatives:
@@ -43,7 +47,7 @@ def enumerate_bullet_options_for_voter(
             situation,
             bullet_choice_by_voter={voter_index: chosen},
         )
-        happy = borda_happiness_for_outcome(situation, out.winner)
+        happy = happiness_for_outcome(situation, out.winner, metric=happiness_metric)
 
         options.append(
             StrategicOption(
@@ -63,8 +67,15 @@ def enumerate_bullet_options_for_voter(
 def enumerate_bullet_options(
     scheme: VotingScheme,
     situation: VotingSituation,
+    *,
+    happiness_metric: HappinessMetric = HappinessMetric.BORDA,
 ) -> dict[int, list[StrategicOption]]:
     """Enumerate bullet-voting options for every voter."""
 
     situation.validate()
-    return {i: enumerate_bullet_options_for_voter(scheme, situation, i) for i in range(situation.n_voters)}
+    return {
+        i: enumerate_bullet_options_for_voter(
+            scheme, situation, i, happiness_metric=happiness_metric
+        )
+        for i in range(situation.n_voters)
+    }

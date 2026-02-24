@@ -39,17 +39,17 @@ class StrategicOption:
     baseline_happiness: HappinessResult  # contains (H_1..H_n) and H
 
     @property
-    def H_tilde_i(self) -> int:
+    def H_tilde_i(self) -> float:
         return self.strategic_happiness.per_voter[self.voter_index]
 
     @property
-    def H_i(self) -> int:
+    def H_i(self) -> float:
         return self.baseline_happiness.per_voter[self.voter_index]
 
     @property
-    def H_tilde(self) -> int:
+    def H_tilde(self) -> float:
         return self.strategic_happiness.total
 
     @property
-    def H(self) -> int:
+    def H(self) -> float:
         return self.baseline_happiness.total

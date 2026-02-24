@@ -5,6 +5,7 @@ from pathlib import Path
 
 from .models import VotingScheme
 from .analysis import compute_risk, run_btva, run_btva_with_strategies
+from .happiness import HappinessMetric
 from .parsing import load_input_file
 
 
@@ -25,22 +26,25 @@ def build_parser() -> argparse.ArgumentParser:
         choices=[s.value for s in VotingScheme],
         help="Voting scheme to apply (required because .abif inputs do not include the scheme).",
     )
+
+    p.add_argument(
+        "--happiness-metric",
+        choices=[m.value for m in HappinessMetric],
+        default=HappinessMetric.BORDA.value,
+        help=(
+            "Happiness metric to use. "
+            "borda = (m-1)-rank (historical default); "
+            "rank_normalized = 1 - rank/(m-1) (float in [0,1])."
+        ),
+    )
     # Scores, strategy enumeration and detailed strategy printing are enabled by default.
     p.add_argument(
         "--max-m",
         type=int,
-        default=20,
+        default=8,
         help="Safety cap for --enumerate-strategies: refuse enumeration when m > max-m (default: 8).",
     )
 
-    p.add_argument(
-        "--profitable",
-        action="store_true",
-        help=(
-            "Display-only flag: show only tactical options with H~_i > H_i. "
-            "(S_i is defined as tactical options by default; this flag is kept for clarity/backward compatibility.)"
-        ),
-    )
     p.add_argument(
         "--strategy-limit",
         type=int,
@@ -68,18 +72,23 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
-    # Single profitable flag (strict profitable: H~_i > H_i)
-
     parsed = load_input_file(Path(args.input))
     scheme: VotingScheme = VotingScheme(args.scheme)
+    happiness_metric = HappinessMetric(args.happiness_metric)
 
     # Always run the strategic analysis (enumerate strategies subject to max_m guard).
-    result = run_btva_with_strategies(scheme, parsed.situation, max_m=args.max_m)
+    result = run_btva_with_strategies(
+        scheme,
+        parsed.situation,
+        max_m=args.max_m,
+        happiness_metric=happiness_metric,
+    )
 
     print(f"scheme: {result.outcome.scheme.value}")
     print(f"winner: {result.outcome.winner}")
-    print(f"H_i: {list(result.happiness.per_voter)}")
-    print(f"H: {result.happiness.total}")
+    print(f"happiness_metric: {happiness_metric.value}")
+    print(f"H_i: {[float(x) for x in result.happiness.per_voter]}")
+    print(f"H: {float(result.happiness.total)}")
 
     # Print scores for the initial (non-strategic) outcome before listing strategies.
     for alt in sorted(result.outcome.scores):
@@ -94,11 +103,9 @@ def main(argv: list[str] | None = None) -> int:
         for voter_idx, opts in result.strategic_options.items()
     }
 
-    # The options we display can optionally be filtered further.
+    # The options we display are tactical by definition.
     shown_options_by_voter: dict[int, list] = {}
     for voter_idx, options in tactical_options_by_voter.items():
-        # --profitable is now a display flag only: it makes the intent explicit,
-        # but the underlying option sets are already tactical-only.
         filtered_options = options
 
         shown_options_by_voter[voter_idx] = filtered_options

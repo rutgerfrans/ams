@@ -1,0 +1,29 @@
+# Edge case: parsing stress test (truncation + '=' ties)
+# 5 candidates, 3 voters.
+# This exercises two parser rules:
+#   - '=' is linearized left-to-right into strict '>'
+#   - truncated ballots are completed by appending missing candidates in ascending id order
+#
+# Note: This is NOT meant to be a tricky social choice case; it is meant to be an
+# obvious input-format edge case to verify deterministic parsing.
+#
+# 5 candidates
+=0 : [0]
+=1 : [1]
+=2 : [2]
+=3 : [3]
+=4 : [4]
+
+# voter 0: truncation (missing 0,1,2);
+# parsed as 4>3>0>1>2
+1:4>3
+
+# voter 1: '=' ties + truncation (missing 4);
+# '2=0' becomes '2>0', then append missing candidate 4 at the end
+# parsed as 1>3>2>0>4
+1:1>3>2=0
+
+# voter 2: multiple '=' groups
+# '0=4' -> '0>4', '2=1' -> '2>1'
+# parsed as 3>0>4>2>1
+1:3>0=4>2=1

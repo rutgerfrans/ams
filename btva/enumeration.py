@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import itertools
 
-from .happiness import borda_happiness_for_outcome
+from .happiness import HappinessMetric, happiness_for_outcome
 from .models import VotingScheme, VotingSituation
 from .strategic_options import StrategicOption
 from .strategies import StrategicBallot
@@ -15,6 +15,7 @@ def enumerate_all_permutations_options_for_voter(
     voter_index: int,
     *,
     include_no_change: bool = False,
+    happiness_metric: HappinessMetric = HappinessMetric.BORDA,
 ) -> list[StrategicOption]:
     """Enumerate strategic options for voter i by trying ALL permutations.
 
@@ -34,7 +35,9 @@ def enumerate_all_permutations_options_for_voter(
         raise IndexError("voter_index out of range")
 
     baseline_outcome = tally_votes(scheme, situation)
-    baseline_happy = borda_happiness_for_outcome(situation, baseline_outcome.winner)
+    baseline_happy = happiness_for_outcome(
+        situation, baseline_outcome.winner, metric=happiness_metric
+    )
 
     sincere = situation.voters_preferences[voter_index]
 
@@ -50,10 +53,10 @@ def enumerate_all_permutations_options_for_voter(
         )
 
         out = tally_votes_strategic(scheme, situation, overrides={voter_index: tactical})
-        happy = borda_happiness_for_outcome(situation, out.winner)
+        happy = happiness_for_outcome(situation, out.winner, metric=happiness_metric)
 
         options.append(
-                StrategicOption(
+            StrategicOption(
                 voter_index=voter_index,
                 strategy_kind="compromising_burying",
                 tactical_ballot=tactical,
@@ -72,6 +75,7 @@ def enumerate_all_permutations_options(
     situation: VotingSituation,
     *,
     include_no_change: bool = False,
+    happiness_metric: HappinessMetric = HappinessMetric.BORDA,
 ) -> dict[int, list[StrategicOption]]:
     """Enumerate strategic options for every voter using ALL permutations."""
 
@@ -79,7 +83,11 @@ def enumerate_all_permutations_options(
 
     return {
         i: enumerate_all_permutations_options_for_voter(
-            scheme, situation, i, include_no_change=include_no_change
+            scheme,
+            situation,
+            i,
+            include_no_change=include_no_change,
+            happiness_metric=happiness_metric,
         )
         for i in range(situation.n_voters)
     }
