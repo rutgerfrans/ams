@@ -17,6 +17,9 @@ btva = "btva.cli:main"
 addopts = "-q"
 testpaths = ["tests"]
 
+[tool.setuptools]
+packages = ["btva"]
+
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"

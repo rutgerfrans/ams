@@ -8,4 +8,244 @@ Description-Content-Type: text/markdown
 Provides-Extra: dev
 Requires-Dist: pytest>=7.0; extra == "dev"
 
-# ams
+# Tactical Voting Analyst (BTVA) — AMS Lab
+
+This repository contains a Python implementation of a **Basic Tactical Voting Analyst (BTVA)** for the *Strategic Voting* lab of **Agents and Multi-Agent Systems (KEN 4111)**.
+
+At a high level, the tool:
+
+- parses an ABIF-like voting situation (`.abif`)
+- tallies a positional voting rule (plurality, vote-for-two, veto/anti-plurality, Borda)
+- enumerates (a bounded set of) unilateral strategic ballots per voter
+- keeps only **tactical** options (those that strictly improve the deviator’s happiness)
+- reports outcome, happiness, tactical option counts, and a **risk of tactical voting** metric
+
+> Note: This repo focuses on the BTVA setting (single voter deviates at a time). If you’re implementing **ATVA-1 (collusion)**, this codebase is the starting point.
+
+## Quickstart
+
+This workspace already contains a virtual environment in `.venv/`.
+
+Run tests:
+
+```bash
+.venv/bin/python -m pytest
+```
+
+Run the CLI on one scenario:
+
+```bash
+.venv/bin/btva voting_scenarios/sv_poll_1.abif --scheme borda
+```
+
+Run experiments (writes a CSV) and plot the trade-off figures:
+
+```bash
+.venv/bin/python -m btva.experiments \
+  --include 'sv_poll_*_small.abif' \
+  --include 'sv_poll_*_medium.abif' \
+  --include 'sv_poll_*_large.abif'
+
+.venv/bin/python -m btva.plot_results --out-dir experiments/plots
+```
+
+## What the assignment expects (conceptually)
+
+### Input
+
+1. A **voting scheme** (plurality, vote-for-two, veto/anti-plurality, Borda)
+2. A **voting situation**: $n$ voters ranking $m$ alternatives ($m,n>2$)
+
+### Output
+
+For a fixed scheme and situation, the analyst produces:
+
+1. non-strategic outcome $O$ (winner + scores)
+2. per-voter happiness values $H_i$
+3. total happiness $H = \sum_i H_i$
+4. per-voter tactical option set $S_i$ (may be empty)
+5. a scalar “risk of tactical voting” (metric you choose)
+
+## Repository structure
+
+- `btva/` — package code
+  - `models.py` — core data models (`VotingScheme`, `VotingSituation`)
+  - `parsing.py` — `.abif` input parsing
+  - `voting.py` — positional voting rules + deterministic tie-breaking
+  - `experiments.py` — batch runner that outputs CSV
+  - `plot_results.py` — trade-off plots from the CSV
+- `tests/` — unit tests
+- `Strategic_Voting_Description.pdf` — assignment description
+- `pyproject.toml` — Python project config
+
+## Voting rules implemented
+
+The required positional score vectors are implemented:
+
+- **Plurality**: $(1, 0, \dots, 0)$
+- **Vote-for-two**: $(1, 1, 0, \dots, 0)$
+- **Anti-plurality / veto**: $(1, 1, \dots, 1, 0)$
+- **Borda**: $(m-1, m-2, \dots, 0)$
+
+Tie-breaking is deterministic: if multiple alternatives have the same top score, the winner is the earliest in lexicographic order (`A < B < C < …`).
+
+## Input format (`.abif`)
+
+We use an ABIF-like text format (files typically named `sv_poll_*.abif`). Minimal example:
+
+```text
+# 5 candidates
+=0 : [0]
+=1 : [1]
+=2 : [2]
+=3 : [3]
+=4 : [4]
+1:4>2>3>1>0
+1:3>1>4>2>0
+```
+
+Parsing rules/assumptions:
+
+- First line declares the number of candidates: `# <m> candidates`.
+- Ballots are `count:ranking`.
+- Rankings are expected to be complete. If a ballot is truncated, missing candidates are appended at the end in ascending candidate-id order.
+- If a ranking contains ties (`=`), ties are linearized by converting `=` to `>` while preserving left-to-right order.
+
+## The CLI (`btva`)
+
+The console script is `btva`.
+
+Basic usage:
+
+```bash
+.venv/bin/btva voting_scenarios/sv_poll_1.abif --scheme plurality
+```
+
+The CLI always:
+
+- computes the non-strategic outcome (winner + scores)
+- enumerates strategic ballots (bounded by `--max-m`)
+- filters to **tactical** options only: options with $\tilde H_i > H_i$
+- prints $S_i$ sizes and (optionally) the concrete option tuples
+
+### Important options
+
+- `--scheme` (required): `plurality`, `vote_for_two`, `anti_plurality`, `borda`
+- `--happiness-metric`: `borda` or `rank_normalized` (see below)
+- `--max-m`: cap for compromising/burying permutation enumeration (default: `8`)
+  - if $m >$ `max-m`, only **bullet** options are enumerated and a note is printed
+- `--strategy-limit`: max number of tactical options to print per voter (`-1` prints all)
+- `--risk-method`: `avg_gain_all_options` or `fraction_change_winner`
+
+## Happiness metric (`--happiness-metric`)
+
+The assignment allows you to pick a happiness definition. This project supports:
+
+- `borda` (historical default)
+  - Winner happiness equals $(m-1) - \mathrm{rank}_i(w)$.
+  - Range: $[0, m-1]$.
+
+- `rank_normalized`
+  - Rank-normalized happiness to avoid a Borda-point-scale bias.
+  - For winner $w$ with rank $\mathrm{rank}_i(w) \in \{0,\dots,m-1\}$ (0 is top-ranked):
+    $$
+    H_i = 1 - \frac{\mathrm{rank}_i(w)}{m-1}
+    $$
+  - Range: $[0, 1]$.
+
+Example:
+
+```bash
+.venv/bin/btva voting_scenarios/sv_poll_1.abif --scheme borda --happiness-metric rank_normalized
+```
+
+## Tactical options and risk metrics
+
+An enumerated option counts as **tactical** iff it strictly improves the deviating voter’s happiness:
+
+$$
+	ilde H_i > H_i
+$$
+
+The per-voter tactical sets $S_i$ contain only such options. Risk metrics are computed from these sets.
+
+### `avg_gain_all_options`
+
+Risk defined as **strength of incentives** to manipulate: the average happiness gain over all tactical options:
+
+$$
+	ext{risk} = \frac{1}{|S|} \sum_{i} \sum_{s_{ij} \in S_i} (\tilde H_i - H_i)
+$$
+
+### `fraction_change_winner`
+
+Risk defined as **winner-change vulnerability**: fraction of voters that can change the winner with at least one tactical option:
+
+$$
+	ext{risk} = \frac{1}{n} \left| \{ i \mid \exists s_{ij} \in S_i : \tilde O \neq O \} \right|
+$$
+
+## Experiments (CSV output)
+
+To compare schemes across many scenarios, use the experiment runner:
+
+```bash
+.venv/bin/python -m btva.experiments --include 'sv_poll_*_small.abif'
+```
+
+Notes:
+
+- You can pass `--include` multiple times.
+- The runner’s globbing is done in Python (not bash). Patterns like `{small,medium,large}` won’t work; use multiple `--include` flags.
+- By default, output is written to a **dated** CSV:
+  - `experiments/results_YYYY-MM-DD.csv`
+- Each CSV row corresponds to one `(scenario, scheme)` pair.
+- Strategy enumeration uses the same `--max-m` cap; when $m >$ `max-m`, permutation enumeration is skipped (bullet options only).
+
+If you want a fixed filename:
+
+```bash
+.venv/bin/python -m btva.experiments \
+  --include 'sv_poll_*_small.abif' \
+  --out experiments/results_custom.csv
+```
+
+## Plotting (trade-off plots only)
+
+The plotter reads a results CSV and generates **two** scatter plots (one point per `(scenario, scheme)`):
+
+- `tradeoff_h_mean_vs_risk_fraction.png`
+- `tradeoff_h_mean_vs_risk_avg_gain.png`
+
+Run:
+
+```bash
+.venv/bin/python -m btva.plot_results --out-dir experiments/plots
+```
+
+Defaults:
+
+- if `--csv` is not provided, it auto-selects the newest `experiments/results_*.csv` (dated runs)
+- output directory defaults to `experiments/plots/`
+
+Override input/output:
+
+```bash
+.venv/bin/python -m btva.plot_results --csv experiments/results_2026-02-24.csv --out-dir experiments/plots
+```
+
+## Troubleshooting
+
+- **No plots generated:** ensure your CSV contains the expected columns (`H_mean` and at least one risk column). The plotter silently skips a plot if required columns are missing.
+- **Enumeration is slow:** reduce enumeration using `--max-m` (both the CLI and experiments runner respect it). When $m$ exceeds the cap, the tool automatically falls back to bullet-only enumeration.
+
+## Status
+
+Implemented and tested:
+
+- positional voting rules (plurality, vote-for-two, veto/anti-plurality, Borda)
+- deterministic tie-breaking
+- `.abif` parsing
+- tactical option enumeration (bullet + bounded compromising/burying permutations)
+- rank-normalized happiness option
+- two risk metrics
