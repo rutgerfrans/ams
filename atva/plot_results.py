@@ -1,15 +1,3 @@
-"""Plot ATVA experiment results.
-
-This script reads the CSV produced by `python -m atva.experiments` and creates
-visualizations comparing ATVA variants and voting schemes.
-
-Usage:
-    .venv/Scripts/python -m atva.plot_results --csv experiments/atva_results.csv
-
-Outputs by default to:
-    experiments/atva_plots/
-"""
-
 from __future__ import annotations
 
 import argparse

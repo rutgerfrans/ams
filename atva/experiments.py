@@ -1,12 +1,3 @@
-"""Batch experiments for ATVA variants.
-
-Usage:
-    python -m atva.experiments [options]
-
-This runs all ATVA variants across multiple scenarios and schemes,
-similar to btva.experiments.
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -76,7 +67,6 @@ def _iter_scenario_files(
     include_globs: list[str] | None = None,
     exclude_prefixes: tuple[str, ...] = (),
 ) -> list[Path]:
-    """Find scenario files matching the given patterns."""
     if not include_globs:
         include_globs = ["*.abif"]
 
