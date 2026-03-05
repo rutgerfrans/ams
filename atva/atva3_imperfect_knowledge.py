@@ -131,6 +131,8 @@ class BeliefModel:
     def __post_init__(self):
         if len(self.belief_scenarios) != len(self.scenario_probabilities):
             raise ValueError("Number of scenarios must match number of probabilities")
+        if any(p < 0 for p in self.scenario_probabilities):
+            raise ValueError("Probabilities must be non-negative")
         if abs(sum(self.scenario_probabilities) - 1.0) > 1e-6:
             raise ValueError("Probabilities must sum to 1.0")
 
