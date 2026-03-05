@@ -17,7 +17,7 @@ from __future__ import annotations
 import itertools
 from dataclasses import dataclass
 from itertools import combinations, product
-
+import math
 from btva.models import VotingScheme, VotingSituation
 from btva.strategies import StrategicBallot
 from btva.voting import tally_votes, tally_votes_strategic
@@ -290,24 +290,46 @@ def run_atva1(
         coalition_options[k] = options
 
     # Compute risk metrics
+        # Compute risk metrics (coalition-level, not option-level)
     max_size_changes_winner = 0
-    total_coalitions = sum(len(opts) for opts in coalition_options.values())
-    coalitions_change_winner = 0
-    total_gain = 0.0
+
+    n = situation.n_voters
+    max_k = min(max_coalition_size, n)
+
+    # Denominator: number of coalitions considered (by size)
+    total_coalitions_evaluated = sum(math.comb(n, k) for k in range(2, max_k + 1))
+
+    # Numerator: distinct coalitions for which there exists some option that changes the winner
+    coalitions_with_winner_change: set[tuple[int, ...]] = set()
+
+    # Avg gain: for each coalition, take the best gain among its beneficial options
+    best_gain_by_coalition: dict[tuple[int, ...], float] = {}
 
     for size, opts in coalition_options.items():
         for opt in opts:
-            if opt.changes_winner and size > max_size_changes_winner:
-                max_size_changes_winner = size
+            coalition = opt.voter_indices
+
             if opt.changes_winner:
-                coalitions_change_winner += 1
-            total_gain += opt.coalition_gain
+                coalitions_with_winner_change.add(coalition)
+                if size > max_size_changes_winner:
+                    max_size_changes_winner = size
+
+            prev_best = best_gain_by_coalition.get(coalition, float("-inf"))
+            if opt.coalition_gain > prev_best:
+                best_gain_by_coalition[coalition] = opt.coalition_gain
 
     fraction_change_winner = (
-        coalitions_change_winner / total_coalitions if total_coalitions > 0 else 0.0
+        (len(coalitions_with_winner_change) / total_coalitions_evaluated)
+        if total_coalitions_evaluated > 0
+        else 0.0
     )
-    avg_gain = total_gain / total_coalitions if total_coalitions > 0 else 0.0
+    avg_gain = (
+        (sum(best_gain_by_coalition.values()) / len(best_gain_by_coalition))
+        if best_gain_by_coalition
+        else 0.0
+    )
 
+    
     return Atva1Result(
         scheme=scheme,
         baseline_outcome=baseline_outcome.winner,

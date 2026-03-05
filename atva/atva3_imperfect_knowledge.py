@@ -148,6 +148,7 @@ class StrategicOptionUnderUncertainty:
 
     outcomes_by_scenario: tuple[str, ...]
     happiness_by_scenario: tuple[float, ...]
+    baseline_happiness_by_scenario: tuple[float, ...]
 
     true_outcome: str | None
     true_happiness: float | None
@@ -160,7 +161,7 @@ class StrategicOptionUnderUncertainty:
     @property
     def is_robust(self) -> bool:
         """Is this option good in all scenarios? (happiness > baseline in all)"""
-        return all(h > self.baseline_expected_happiness for h in self.happiness_by_scenario)
+        return all(h > b for h, b in zip(self.happiness_by_scenario, self.baseline_happiness_by_scenario))
 
 
 @dataclass(frozen=True)
@@ -303,6 +304,7 @@ def evaluate_option_under_uncertainty(
         happiness_by_scenario=tuple(happiness_values),
         true_outcome=true_outcome_obj.winner,
         true_happiness=true_happy.per_voter[voter_index],
+        baseline_happiness_by_scenario=tuple(baseline_happiness_values),
     )
 
 
