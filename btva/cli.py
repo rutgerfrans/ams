@@ -1,13 +1,10 @@
 from __future__ import annotations
-
 import argparse
 from pathlib import Path
-
 from .models import VotingScheme
 from .analysis import compute_risk, run_btva, run_btva_with_strategies
 from .happiness import HappinessMetric
 from .parsing import load_input_file
-
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
@@ -37,7 +34,7 @@ def build_parser() -> argparse.ArgumentParser:
             "rank_normalized = 1 - rank/(m-1) (float in [0,1])."
         ),
     )
-    # Scores, strategy enumeration and detailed strategy printing are enabled by default.
+
     p.add_argument(
         "--max-m",
         type=int,
@@ -71,18 +68,11 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
-
     parsed = load_input_file(Path(args.input))
     scheme: VotingScheme = VotingScheme(args.scheme)
     happiness_metric = HappinessMetric(args.happiness_metric)
 
-    # Always run the strategic analysis (enumerate strategies subject to max_m guard).
-    result = run_btva_with_strategies(
-        scheme,
-        parsed.situation,
-        max_m=args.max_m,
-        happiness_metric=happiness_metric,
-    )
+    result = run_btva_with_strategies(scheme, parsed.situation, max_m=args.max_m, happiness_metric=happiness_metric)
 
     print(f"scheme: {result.outcome.scheme.value}")
     print(f"winner: {result.outcome.winner}")
@@ -90,20 +80,16 @@ def main(argv: list[str] | None = None) -> int:
     print(f"H_i: {[float(x) for x in result.happiness.per_voter]}")
     print(f"H: {float(result.happiness.total)}")
 
-    # Print scores for the initial (non-strategic) outcome before listing strategies.
     for alt in sorted(result.outcome.scores):
         print(f"{alt}: {result.outcome.scores[alt]}")
 
-    # Print strategic option summaries and the full option tuples (subject to --strategy-limit).
     assert result.strategic_options is not None
-    # Option A (assignment-aligned): the strategic/tactical option sets S_i contain only
-    # tactical options, i.e. options with H~_i > H_i for the deviating voter.
+
     tactical_options_by_voter: dict[int, list] = {
         voter_idx: [opt for opt in opts if opt.H_tilde_i > opt.H_i]
         for voter_idx, opts in result.strategic_options.items()
     }
 
-    # The options we display are tactical by definition.
     shown_options_by_voter: dict[int, list] = {}
     for voter_idx, options in tactical_options_by_voter.items():
         filtered_options = options
@@ -126,14 +112,9 @@ def main(argv: list[str] | None = None) -> int:
             shown = filtered_options[:limit]
 
         for j, opt in enumerate(shown):
-            # Print in the naming of the assignment tuple:
-            # s_ij = (v~_ij, O~, H~_i, H_i, H~, H)
-            print(
-                f"  s_{voter_idx},{j}: kind={opt.strategy_kind} v~={list(opt.tactical_ballot.preferences)} "
-                f"O~={opt.strategic_outcome} H~_i={opt.H_tilde_i} H_i={opt.H_i} H~={opt.H_tilde} H={opt.H}"
-            )
+            print(f"  s_{voter_idx},{j}: kind={opt.strategy_kind} v~={list(opt.tactical_ballot.preferences)} "
+                f"O~={opt.strategic_outcome} H~_i={opt.H_tilde_i} H_i={opt.H_i} H~={opt.H_tilde} H={opt.H}")
 
-    # Print risk summary based on tactical options S_i (independent of --profitable).
     risk = compute_risk(tactical_options_by_voter, method=args.risk_method)
     by_kind = risk.get("by_strategy_kind", {})
     if isinstance(by_kind, dict) and by_kind:
@@ -145,12 +126,7 @@ def main(argv: list[str] | None = None) -> int:
 
     m = parsed.situation.m_alternatives
     if m > args.max_m:
-        print(
-            f"note: m={m} > max-m={args.max_m}, so compromising_burying enumeration was skipped (bullet options only)."
-        )
-
-    # scores already printed above (initial outcome)
-
+        print(f"note: m={m} > max-m={args.max_m}, so compromising_burying enumeration was skipped (bullet options only).")
     return 0
 
 if __name__ == "__main__":

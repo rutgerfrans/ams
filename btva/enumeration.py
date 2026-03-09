@@ -1,14 +1,12 @@
 from __future__ import annotations
-
 import itertools
-
 from .happiness import HappinessMetric, happiness_for_outcome
 from .models import VotingScheme, VotingSituation
 from .strategic_options import StrategicOption
 from .strategies import StrategicBallot
 from .voting import tally_votes, tally_votes_strategic
 
-
+#enumerate strategic options for voter i by trying all permutations
 def enumerate_all_permutations_options_for_voter(
     scheme: VotingScheme,
     situation: VotingSituation,
@@ -17,27 +15,13 @@ def enumerate_all_permutations_options_for_voter(
     include_no_change: bool = False,
     happiness_metric: HappinessMetric = HappinessMetric.BORDA,
 ) -> list[StrategicOption]:
-    """Enumerate strategic options for voter i by trying ALL permutations.
-
-    Warning: this is factorial in m (O(m!)). Only feasible for small m.
-
-    We generate every possible full ranking (permutation of alternatives) for
-    voter i, treat each as a tactical ballot v~_ij, compute the resulting
-    outcome O~, compute per-voter happiness under O~, and package everything in
-    StrategicOption.
-
-    include_no_change:
-        If False (default), skip the sincere ballot itself.
-    """
 
     situation.validate()
     if not (0 <= voter_index < situation.n_voters):
         raise IndexError("voter_index out of range")
 
     baseline_outcome = tally_votes(scheme, situation)
-    baseline_happy = happiness_for_outcome(
-        situation, baseline_outcome.winner, metric=happiness_metric
-    )
+    baseline_happy = happiness_for_outcome(situation, baseline_outcome.winner, metric=happiness_metric)
 
     sincere = situation.voters_preferences[voter_index]
 
@@ -46,11 +30,7 @@ def enumerate_all_permutations_options_for_voter(
         if not include_no_change and perm == sincere:
             continue
 
-        tactical = StrategicBallot(
-            voter_index=voter_index,
-            kind="compromising_burying",
-            preferences=tuple(perm),
-        )
+        tactical = StrategicBallot(voter_index=voter_index, kind="compromising_burying", preferences=tuple(perm),)
 
         out = tally_votes_strategic(scheme, situation, overrides={voter_index: tactical})
         happy = happiness_for_outcome(situation, out.winner, metric=happiness_metric)
@@ -64,9 +44,7 @@ def enumerate_all_permutations_options_for_voter(
                 baseline_outcome=baseline_outcome.winner,
                 strategic_happiness=happy,
                 baseline_happiness=baseline_happy,
-            )
-        )
-
+            ))
     return options
 
 
@@ -77,10 +55,7 @@ def enumerate_all_permutations_options(
     include_no_change: bool = False,
     happiness_metric: HappinessMetric = HappinessMetric.BORDA,
 ) -> dict[int, list[StrategicOption]]:
-    """Enumerate strategic options for every voter using ALL permutations."""
-
     situation.validate()
-
     return {
         i: enumerate_all_permutations_options_for_voter(
             scheme,

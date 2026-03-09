@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 import argparse
 import csv
 import time
@@ -7,12 +6,10 @@ from datetime import date
 from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Iterable
-
 from .analysis import compute_risk, run_btva_with_strategies
 from .happiness import HappinessMetric
 from .models import VotingScheme
 from .parsing import load_input_file
-
 
 @dataclass(frozen=True)
 class ExperimentRow:
@@ -46,7 +43,6 @@ def _iter_scenario_files(
     seen: set[Path] = set()
     files: list[Path] = []
     for g in include_globs:
-        # If the user passes an exact filename (no glob metacharacters), treat it as a direct file.
         if not any(ch in g for ch in "*?["):
             p = scenarios_dir / g
             if p.exists() and p.is_file() and p not in seen:
@@ -87,13 +83,12 @@ def run_experiments(
     for s_idx, scenario_file in enumerate(scenario_files, start=1):
         try:
             parsed = load_input_file(scenario_file)
-        except Exception as e:  # noqa: BLE001 - experiment runner should be robust
+        except Exception as e:
             print(f"warning: skipping {scenario_file.name}: {type(e).__name__}: {e}")
             continue
 
         situation = parsed.situation
 
-        # If m exceeds max_m, we still run, but strategy enumeration is bullet-only.
         if situation.m_alternatives > max_m:
             print(
                 f"note: {scenario_file.name}: m={situation.m_alternatives}>max_m={max_m} => "
@@ -104,7 +99,6 @@ def run_experiments(
         for k_idx, scheme in enumerate(schemes, start=1):
             t0 = time.perf_counter()
 
-            # Progress line (kept intentionally short; safe for long runs).
             if total_jobs > 0:
                 print(
                     f"[{jobs_done+1:>4}/{total_jobs}] scenario {s_idx}/{len(scenario_files)} {scenario_file.name} | "
@@ -112,12 +106,7 @@ def run_experiments(
                     flush=True,
                 )
 
-            result = run_btva_with_strategies(
-                scheme,
-                situation,
-                max_m=max_m,
-                happiness_metric=happiness_metric,
-            )
+            result = run_btva_with_strategies(scheme, situation, max_m=max_m, happiness_metric=happiness_metric)
 
             assert result.strategic_options is not None
             tactical_options_by_voter = {
@@ -125,39 +114,32 @@ def run_experiments(
                 for i, opts in result.strategic_options.items()
             }
 
-            risk_gain = compute_risk(
-                tactical_options_by_voter, method="avg_gain_all_options"
-            )
-            risk_change = compute_risk(
-                tactical_options_by_voter, method="fraction_change_winner"
-            )
+            risk_gain = compute_risk(tactical_options_by_voter, method="avg_gain_all_options")
+            risk_change = compute_risk(tactical_options_by_voter, method="fraction_change_winner")
 
             tactical_total = sum(len(opts) for opts in tactical_options_by_voter.values())
 
-            # "Tactical happiness": average happiness of the deviating voter after applying
-            # a tactical option, averaged over all tactical options across all voters.
-            # If there are no tactical options, fall back to the sincere baseline.
             tactical_gains = [
                 (opt.H_tilde_i - opt.H_i)
                 for opts in tactical_options_by_voter.values()
                 for opt in opts
             ]
+
             tactical_delta_total = [
                 (opt.H_tilde - opt.H)
                 for opts in tactical_options_by_voter.values()
                 for opt in opts
             ]
-            avg_tactical_gain = (
-                sum(tactical_gains) / len(tactical_gains) if tactical_gains else 0.0
-            )
+
+            avg_tactical_gain = (sum(tactical_gains) / len(tactical_gains) if tactical_gains else 0.0)
+
             avg_delta_H_total = (
                 sum(tactical_delta_total) / len(tactical_delta_total)
                 if tactical_delta_total
                 else 0.0
             )
-            H_mean_tactical = (float(result.happiness.total) / max(1, situation.n_voters)) + float(
-                avg_tactical_gain
-            )
+
+            H_mean_tactical = (float(result.happiness.total) / max(1, situation.n_voters)) + float(avg_tactical_gain)
             H_total_tactical = H_mean_tactical * max(1, situation.n_voters)
 
             t1 = time.perf_counter()
@@ -188,9 +170,7 @@ def run_experiments(
                     note="; ".join(note_parts),
                 )
             )
-
             jobs_done += 1
-
     return rows
 
 
@@ -208,10 +188,7 @@ def write_csv(rows: list[ExperimentRow], out_path: Path) -> None:
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="btva.experiments",
-        description=(
-            "Run BTVA experiments over a set of .abif scenarios and voting schemes and write a CSV."
-        ),
-    )
+        description=("Run BTVA experiments over a set of .abif scenarios and voting schemes and write a CSV."))
 
     p.add_argument(
         "--scenarios-dir",

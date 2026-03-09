@@ -1,55 +1,26 @@
 from __future__ import annotations
-
 from enum import Enum
 from dataclasses import dataclass
-
 from .models import VotingSituation
-
 
 class HappinessMetric(str, Enum):
     BORDA = "borda"
     RANK_NORMALIZED = "rank_normalized"
 
-
+#happiness metrics for a fixed outcome winner
 @dataclass(frozen=True)
 class HappinessResult:
-    """Happiness metrics for a fixed outcome winner O.
-
-    We follow the assignment's notation:
-    - O: the non-strategic outcome (winner)
-    - H_i: happiness for voter i
-    - H: overall happiness (sum_i H_i)
-
-    The definition of H_i is provided by this module.
-    """
-
-    outcome: str  # O
-    per_voter: tuple[float, ...]  # (H_1, ..., H_n)
+    outcome: str
+    per_voter: tuple[float, ...]
 
     @property
     def total(self) -> float:
         return float(sum(self.per_voter))
 
-
+# compute per-voter happiness using Borda utility of the outcome
 def borda_happiness_for_outcome(
     situation: VotingSituation, outcome: str
 ) -> HappinessResult:
-    """Compute per-voter happiness using Borda utility of the outcome.
-
-    Definition (Borda-based): for each voter i, let rank_i(O) be the 0-based
-    position of the outcome O in the voter's true preference list (0 = top).
-
-    With m alternatives, define:
-        H_i = (m - 1) - rank_i(O)
-
-    So:
-    - top-ranked winner => H_i = m-1
-    - bottom-ranked winner => H_i = 0
-
-    This is exactly the Borda score that voter i assigns to the winner.
-
-    Returns a HappinessResult containing (O, (H_1..H_n)).
-    """
 
     situation.validate()
 
@@ -64,25 +35,10 @@ def borda_happiness_for_outcome(
 
     return HappinessResult(outcome=outcome, per_voter=tuple(per_voter))
 
-
+# compute per-voter happiness using rank-based normalized utility
 def rank_normalized_happiness_for_outcome(
     situation: VotingSituation, outcome: str
 ) -> HappinessResult:
-    """Compute per-voter happiness using rank-based normalized utility.
-
-    Definition: for each voter i, let rank_i(O) be the 0-based position
-    of outcome O in i's true preference list (0 = top).
-
-    With m alternatives, define:
-
-        H_i = 1 - rank_i(O)/(m-1)
-
-    So:
-    - top-ranked winner => H_i = 1.0
-    - bottom-ranked winner => H_i = 0.0
-
-    This is rank-based and scale-free, avoiding Borda point magnitudes.
-    """
 
     situation.validate()
 
@@ -97,7 +53,6 @@ def rank_normalized_happiness_for_outcome(
         per_voter.append(1.0 - (rank / denom))
 
     return HappinessResult(outcome=outcome, per_voter=tuple(per_voter))
-
 
 def happiness_for_outcome(
     situation: VotingSituation,

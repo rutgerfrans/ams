@@ -12,45 +12,21 @@ from .models import VotingScheme, VotingSituation
 from .strategic_options import StrategicOption
 from .voting import VotingOutcome, tally_votes
 
-
 @dataclass(frozen=True)
 class BtvaResult:
-    """Minimal BTVA result object for the assignment's outputs #1-#3.
+    outcome: VotingOutcome
+    happiness: HappinessResult
+    strategic_options: dict[int, list[StrategicOption]] | None = None
 
-    - O: non-strategic voting outcome (winner)
-    - H_i: per-voter happiness levels (our definition)
-
-    Strategic option sets S_i and risk are out of scope for this object for now.
-    """
-
-    outcome: VotingOutcome  # contains O as outcome.winner
-    happiness: HappinessResult  # contains (H_i) and total H
-    strategic_options: dict[int, list[StrategicOption]] | None = None  # S_i
-
-
+#initialize risk methods
 RiskMethod = Literal["avg_gain_all_options", "fraction_change_winner"]
 
-
+#Compute an overall 'risk of strategic voting' value from S_i
 def compute_risk(
     strategic_options: dict[int, list[StrategicOption]],
     *,
     method: RiskMethod,
 ) -> dict[str, object]:
-    """Compute an overall 'risk of strategic voting' value from S_i.
-
-    We implement two metrics:
-
-    - avg_gain_all_options:
-        Average (H~_i - H_i) across all enumerated options s_ij.
-        (Each option contributes one gain number for the voter that deviates.)
-
-    - fraction_change_winner:
-        Fraction of voters i that have at least one option s_ij that changes
-        the winner (O~ != O).
-
-    Returns a small report dict with:
-        {"method": ..., "overall": float, "by_strategy_kind": {kind: float}, "n_options": int}
-    """
 
     n_options = sum(len(opts) for opts in strategic_options.values())
     if n_options == 0:
@@ -84,7 +60,6 @@ def compute_risk(
 
     if method == "fraction_change_winner":
         n_voters = len(strategic_options)
-        # Overall: fraction of voters that can change the winner with any option.
         voters_can_change = 0
         voters_can_change_by_kind: dict[str, set[int]] = defaultdict(set)
 
@@ -118,15 +93,12 @@ def run_btva(
     *,
     happiness_metric: HappinessMetric = HappinessMetric.BORDA,
 ) -> BtvaResult:
-    """Compute outcome O and happiness values H_i (and total H)."""
 
     voting_outcome = tally_votes(scheme, situation)
-    happiness = happiness_for_outcome(
-        situation, voting_outcome.winner, metric=happiness_metric
-    )
+    happiness = happiness_for_outcome(situation, voting_outcome.winner, metric=happiness_metric)
     return BtvaResult(outcome=voting_outcome, happiness=happiness)
 
-
+#Compute O, H_i, H plus strategic option sets S_i 
 def run_btva_with_strategies(
     scheme: VotingScheme,
     situation: VotingSituation,
@@ -135,46 +107,19 @@ def run_btva_with_strategies(
     max_m: int = 8,
     happiness_metric: HappinessMetric = HappinessMetric.BORDA,
 ) -> BtvaResult:
-    """Compute O, H_i, H plus strategic option sets S_i (step 4).
-
-    This uses the "all permutations" enumeration, which is factorial in m.
-    To protect you from accidental 10! explosions, we refuse to enumerate when
-    m > max_m unless you explicitly raise max_m.
-    """
-
     base = run_btva(scheme, situation, happiness_metric=happiness_metric)
 
     m = situation.m_alternatives
-    strategic_options: dict[int, list[StrategicOption]] = {
-        i: [] for i in range(situation.n_voters)
-    }
+    strategic_options: dict[int, list[StrategicOption]] = {i: [] for i in range(situation.n_voters)}
 
-    # Bullet options are cheap (O(n*m)), so we can always include them.
-    bullet = enumerate_bullet_options(
-        scheme, situation, happiness_metric=happiness_metric
-    )
+    bullet = enumerate_bullet_options(scheme, situation, happiness_metric=happiness_metric)
     for i, opts in bullet.items():
         strategic_options[i].extend(opts)
 
-    # Permutation options are factorial in m, protect with max_m.
     if m > max_m:
-        # Keep bullet options only.
-        return BtvaResult(
-            outcome=base.outcome,
-            happiness=base.happiness,
-            strategic_options=strategic_options,
-        )
+        return BtvaResult(outcome=base.outcome, happiness=base.happiness, strategic_options=strategic_options)
 
-    perms = enumerate_all_permutations_options(
-        scheme,
-        situation,
-        include_no_change=include_no_change,
-        happiness_metric=happiness_metric,
-    )
+    perms = enumerate_all_permutations_options(scheme, situation, include_no_change=include_no_change, happiness_metric=happiness_metric)
     for i, opts in perms.items():
         strategic_options[i].extend(opts)
-    return BtvaResult(
-        outcome=base.outcome,
-        happiness=base.happiness,
-        strategic_options=strategic_options,
-    )
+    return BtvaResult(outcome=base.outcome, happiness=base.happiness, strategic_options=strategic_options)

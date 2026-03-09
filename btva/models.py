@@ -4,18 +4,15 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Sequence
 
-
+#voting schemes
 class VotingScheme(str, Enum):
-    """Voting schemes supported by the assignment (Part II.1)."""
-
     PLURALITY = "plurality"  # {1,0,...,0}
     VOTE_FOR_TWO = "vote_for_two"  # {1,1,0,...,0}
     ANTI_PLURALITY = "anti_plurality"  # {1,1,...,0}
     BORDA = "borda"  # {m-1,m-2,...,0}
 
 
-# Strategic voting types mentioned in the assignment.
-# The assignment notes that compromising/burying can be treated as equivalent.
+# Strategic voting types compromise/bury and bullet voting 
 class StrategicVotingType(str, Enum):
     COMPROMISE_OR_BURY = "compromise_or_bury"
     BULLET = "bullet"
@@ -23,21 +20,6 @@ class StrategicVotingType(str, Enum):
 
 @dataclass(frozen=True)
 class VotingSituation:
-    """Matrix of true preferences: m alternatives x n voters.
-
-    We represent preferences as a list/tuple of voters, where each voter is a
-    complete ranking of alternatives from most preferred to least preferred.
-
-    Example (3 voters, 4 alternatives):
-        voters_preferences = [
-            ("C", "B", "A", "D"),
-            ("A", "B", "D", "C"),
-            ("B", "A", "C", "D"),
-        ]
-
-    Constraints (assignment): m,n > 2.
-    """
-
     voters_preferences: tuple[tuple[str, ...], ...]
 
     @property
@@ -64,12 +46,8 @@ class VotingSituation:
 
         for idx, pref in enumerate(self.voters_preferences):
             if len(pref) != self.m_alternatives:
-                raise ValueError(
-                    f"Voter {idx} has {len(pref)} ranked alternatives, expected {self.m_alternatives}."
-                )
+                raise ValueError(f"Voter {idx} has {len(pref)} ranked alternatives, expected {self.m_alternatives}.")
             if set(pref) != expected_alts:
                 missing = expected_alts - set(pref)
                 extra = set(pref) - expected_alts
-                raise ValueError(
-                    f"Voter {idx} must rank exactly the same alternatives. Missing={missing}, extra={extra}."
-                )
+                raise ValueError(f"Voter {idx} must rank exactly the same alternatives. Missing={missing}, extra={extra}.")
