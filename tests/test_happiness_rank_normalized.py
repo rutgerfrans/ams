@@ -1,3 +1,4 @@
+# !!!for convenience tests were generated with llm support.!!!
 from __future__ import annotations
 
 from btva.happiness import rank_normalized_happiness_for_outcome

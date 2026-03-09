@@ -1,3 +1,4 @@
+# !!!for convenience tests were generated with llm support.!!!
 import pytest
 
 from btva.models import VotingScheme, VotingSituation
