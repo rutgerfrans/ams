@@ -7,19 +7,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-
+#Pick a sensible default CSV.
 def _default_results_csv() -> Path:
-    """Pick a sensible default CSV.
-
-    Prefer the newest experiments/atva_results_*.csv (dated runs).
-    """
     experiments_dir = Path("experiments")
     candidates = sorted(experiments_dir.glob("atva_results_*.csv"))
     if candidates:
-        # Lexicographic sort works for ISO dates: atva_results_YYYY-MM-DD.csv
         return candidates[-1]
     return experiments_dir / "atva_results.csv"
-
 
 def _read_results(csv_path: Path) -> pd.DataFrame:
     df = pd.read_csv(csv_path)
@@ -29,18 +23,13 @@ def _read_results(csv_path: Path) -> pd.DataFrame:
     if missing:
         raise SystemExit(f"CSV missing required columns: {sorted(missing)}")
 
-    # Keep plotting stable
     df["scenario"] = df["scenario"].astype(str)
     df["scheme"] = df["scheme"].astype(str)
     df["variant"] = df["variant"].astype(str)
-
-    # Stable ordering
     scheme_order = ["plurality", "vote_for_two", "anti_plurality", "borda"]
     df["scheme"] = pd.Categorical(df["scheme"], categories=scheme_order, ordered=True)
-    
     variant_order = ["atva1", "atva2", "atva3", "atva4"]
     df["variant"] = pd.Categorical(df["variant"], categories=variant_order, ordered=True)
-    
     df = df.sort_values(["scenario", "scheme", "variant"], kind="stable")
 
     return df
@@ -65,7 +54,7 @@ def _plot_atva1_metrics(df: pd.DataFrame, *, out_dir: Path) -> None:
     rng = np.random.default_rng(0)
     jitter = 0.01
 
-    # Plot 1: Coalition size needed to change winner
+    # Plot Coalition size needed to change winner
     plt.figure(figsize=(7, 5))
     for scheme, g in df1.groupby("scheme", observed=True):
         x = pd.to_numeric(g["baseline_mean_happiness"], errors="coerce").to_numpy()
@@ -85,7 +74,7 @@ def _plot_atva1_metrics(df: pd.DataFrame, *, out_dir: Path) -> None:
     plt.savefig(out_dir / "atva1_coalition_size.png", dpi=200)
     plt.close()
 
-    # Plot 2: Coalition vulnerability
+    # Plot Coalition vulnerability
     plt.figure(figsize=(7, 5))
     for scheme, g in df1.groupby("scheme", observed=True):
         x = pd.to_numeric(g["fraction_coalitions_change_winner"], errors="coerce").to_numpy()
@@ -114,7 +103,7 @@ def _plot_atva2_metrics(df: pd.DataFrame, *, out_dir: Path) -> None:
     rng = np.random.default_rng(0)
     jitter = 0.01
 
-    # Plot: Counter-response likelihood vs sequence length
+    # Plot Counter-response likelihood vs sequence length
     plt.figure(figsize=(7, 5))
     for scheme, g in df2.groupby("scheme", observed=True):
         x = pd.to_numeric(g["fraction_manip_with_response"], errors="coerce").to_numpy()
@@ -144,7 +133,7 @@ def _plot_atva3_metrics(df: pd.DataFrame, *, out_dir: Path) -> None:
     rng = np.random.default_rng(0)
     jitter = 0.01
 
-    # Plot: Robustness vs regret
+    # Plot Robustness vs regret
     plt.figure(figsize=(7, 5))
     for scheme, g in df3.groupby("scheme", observed=True):
         x = pd.to_numeric(g["fraction_robust_options"], errors="coerce").to_numpy()
@@ -174,7 +163,7 @@ def _plot_atva4_metrics(df: pd.DataFrame, *, out_dir: Path) -> None:
     rng = np.random.default_rng(0)
     jitter = 0.01
 
-    # Plot: Mutual benefit vs harm
+    # Plot Mutual benefit vs harm
     plt.figure(figsize=(7, 5))
     for scheme, g in df4.groupby("scheme", observed=True):
         x = pd.to_numeric(g["fraction_all_benefit"], errors="coerce").to_numpy()
@@ -194,7 +183,7 @@ def _plot_atva4_metrics(df: pd.DataFrame, *, out_dir: Path) -> None:
     plt.savefig(out_dir / "atva4_tactical_interference.png", dpi=200)
     plt.close()
 
-    # Plot 2: Total happiness impact
+    # Plot Total happiness impact
     plt.figure(figsize=(7, 5))
     for scheme, g in df4.groupby("scheme", observed=True):
         x = pd.to_numeric(g["baseline_mean_happiness"], errors="coerce").to_numpy()
@@ -220,7 +209,7 @@ def _plot_variant_comparison(df: pd.DataFrame, *, out_dir: Path) -> None:
     if df.empty:
         return
 
-    # Bar chart: Average execution time by variant
+    # Bar chart Average execution time by variant
     plt.figure(figsize=(8, 5))
     variant_times = df.groupby("variant", observed=True)["time_seconds"].mean()
     
@@ -340,7 +329,6 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Found {len(df)} rows with {df['variant'].nunique()} variants, "
           f"{df['scheme'].nunique()} schemes, {df['scenario'].nunique()} scenarios")
 
-    # Create variant-specific plots
     print("Creating ATVA-1 plots...")
     _plot_atva1_metrics(df, out_dir=args.out_dir)
     
@@ -353,7 +341,6 @@ def main(argv: list[str] | None = None) -> int:
     print("Creating ATVA-4 plots...")
     _plot_atva4_metrics(df, out_dir=args.out_dir)
     
-    # Create comparison plots
     print("Creating variant comparison plots...")
     _plot_variant_comparison(df, out_dir=args.out_dir)
     

@@ -23,7 +23,7 @@ class AtvaExperimentRow:
     """Result row for ATVA experiments."""
     
     scenario: str
-    variant: str  # atva1, atva2, atva3, atva4
+    variant: str
     m: int
     n: int
     scheme: str
@@ -73,7 +73,6 @@ def _iter_scenario_files(
     seen: set[Path] = set()
     files: list[Path] = []
     for g in include_globs:
-        # If the user passes an exact filename (no glob metacharacters), treat it as a direct file.
         if not any(ch in g for ch in "*?["):
             p = scenarios_dir / g
             if p.exists() and p.is_file() and p not in seen:
@@ -111,25 +110,6 @@ def run_atva_experiments(
     happiness_metric: HappinessMetric = HappinessMetric.BORDA,
     seed: int = 42,
 ) -> list[AtvaExperimentRow]:
-    """Run ATVA experiments across scenarios and schemes.
-    
-    Args:
-        scenario_files: Paths to .abif scenario files
-        schemes: Voting schemes to test
-        variants: Which ATVA variants to run (default: all)
-        max_coalition_size: ATVA-1 parameter
-        max_iterations: ATVA-2 parameter
-        n_scenarios: ATVA-3 parameter
-        noise_level: ATVA-3 parameter
-        max_tactical_voters: ATVA-4 parameter
-        max_ballots_per_voter: Common parameter
-        find_equilibria: ATVA-4 parameter
-        happiness_metric: Happiness metric to use
-        seed: Random seed for ATVA-3
-    
-    Returns:
-        List of experiment result rows
-    """
     if variants is None:
         variants = ["atva1", "atva2", "atva3", "atva4"]
     
@@ -153,7 +133,7 @@ def run_atva_experiments(
             for v_idx, variant in enumerate(variants, start=1):
                 t0 = time.perf_counter()
                 
-                # Progress line
+                # pprogress line
                 if total_jobs > 0:
                     print(
                         f"[{jobs_done+1:>4}/{total_jobs}] scenario {s_idx}/{len(scenario_files)} {scenario_file.name} | "
@@ -164,7 +144,6 @@ def run_atva_experiments(
                 
                 note_parts: list[str] = []
                 
-                # Initialize all metrics to 0/empty
                 row_data = {
                     "scenario": scenario_file.name,
                     "variant": variant,
@@ -441,7 +420,6 @@ def main(argv: list[str] | None = None) -> int:
     
     print(f"wrote {len(rows)} rows to {out_path}")
     return 0
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

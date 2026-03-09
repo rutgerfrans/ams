@@ -7,14 +7,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-
+#Pick a sensible default CSV.
 def _default_results_csv() -> Path:
-    """Pick a sensible default CSV.
-
-    Prefer the newest experiments/atva_results_*.csv (dated runs). If none exist,
-    fall back to experiments/atva_results.csv for backward compatibility.
-    """
-
     experiments_dir = Path("experiments")
     candidates = sorted(experiments_dir.glob("atva_results_*.csv"))
     if candidates:
@@ -42,14 +36,9 @@ def _read_results(csv_path: Path) -> pd.DataFrame:
 
     return df.sort_values(["scenario", "scheme", "variant"], kind="stable")
 
-
+#helper functions
+#Min-max normalize to [0, 1]
 def _minmax_0_1(series: pd.Series) -> pd.Series:
-    """Min-max normalize to [0, 1].
-
-    If all values are equal (or the column is all-NaN), returns 0.0 for
-    non-NaN entries.
-    """
-
     s = pd.to_numeric(series, errors="coerce")
     vmin = s.min(skipna=True)
     vmax = s.max(skipna=True)
@@ -59,8 +48,6 @@ def _minmax_0_1(series: pd.Series) -> pd.Series:
 
 
 def _sanitize_metric_for_filename(metric: str) -> str:
-    """Keep filenames readable and filesystem-friendly."""
-
     return (
         metric.strip()
         .replace(" ", "_")
@@ -69,7 +56,7 @@ def _sanitize_metric_for_filename(metric: str) -> str:
         .replace("__", "_")
     )
 
-
+#Reduce raw ATVA results to one point per (scenario, scheme) for a variant."""
 def _prepare_variant_tradeoff_rows(
     df: pd.DataFrame,
     *,
@@ -77,7 +64,6 @@ def _prepare_variant_tradeoff_rows(
     x_fraction_col: str,
     x_gain_col: str,
 ) -> pd.DataFrame:
-    """Reduce raw ATVA results to one point per (scenario, scheme) for a variant."""
 
     needed = {"scenario", "scheme", "variant", "baseline_mean_happiness", x_fraction_col, x_gain_col}
     missing = needed - set(df.columns)
@@ -114,7 +100,6 @@ def _plot_tradeoff_scatter(
     title: str,
     x_label: str,
 ) -> None:
-    """Scatter: each point is a scenario under a scheme (H_mean vs risk_fraction)."""
     rng = np.random.default_rng(0)
     jitter = 0.01
 
@@ -147,7 +132,6 @@ def _plot_happiness_vs_avg_gain_scatter(
     title: str,
     x_label: str,
 ) -> None:
-    """Scatter: H_mean vs risk_avg_gain (both normalized to [0,1])."""
     rng = np.random.default_rng(0)
     jitter = 0.01
 
@@ -174,12 +158,6 @@ def _plot_happiness_vs_avg_gain_scatter(
 
 
 def _maybe_rename_legacy_outputs(out_dir: Path) -> None:
-    """Rename earlier ambiguous outputs if present.
-
-    Older versions of this script wrote two generic filenames. If they exist,
-    rename them to explicitly refer to ATVA-1 to avoid confusion.
-    """
-
     legacy = {
         "tradeoff_h_mean_vs_risk_fraction.png": "tradeoff_atva1_h_mean_vs_fraction_coalitions_change_winner.png",
         "tradeoff_h_mean_vs_risk_avg_gain.png": "tradeoff_atva1_h_mean_vs_avg_coalition_gain.png",
@@ -216,10 +194,6 @@ def main(argv: list[str] | None = None) -> int:
     args.out_dir.mkdir(parents=True, exist_ok=True)
     _maybe_rename_legacy_outputs(args.out_dir)
 
-    # Variant-specific definitions of the two x-axes we plot.
-    # We map each variant onto:
-    # - a fraction-like metric (used as risk_fraction)
-    # - a continuous magnitude metric (used as risk_avg_gain)
     variant_defs: dict[str, tuple[str, str]] = {
         # ATVA-1 (collusion)
         "atva1": ("fraction_coalitions_change_winner", "avg_coalition_gain"),
@@ -238,8 +212,6 @@ def main(argv: list[str] | None = None) -> int:
             x_fraction_col=x_fraction_col,
             x_gain_col=x_gain_col,
         )
-
-        # Mirror btva.plot_results: normalize only the metrics we need.
         df_trade["H_mean"] = _minmax_0_1(df_trade["baseline_mean_happiness"])
         df_trade["risk_fraction_change_winner"] = _minmax_0_1(df_trade["x_fraction"])
         df_trade["risk_avg_gain_all_options"] = _minmax_0_1(df_trade["x_gain"])
@@ -247,7 +219,6 @@ def main(argv: list[str] | None = None) -> int:
         frac_name = _sanitize_metric_for_filename(x_fraction_col)
         gain_name = _sanitize_metric_for_filename(x_gain_col)
 
-        # Use BTVA-style risk naming, but record which ATVA metric defines it.
         _plot_tradeoff_scatter(
             df_trade,
             out_path=args.out_dir / f"tradeoff_{variant}_h_mean_vs_risk_fraction__{frac_name}.png",

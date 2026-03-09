@@ -1,26 +1,16 @@
-"""Command-line interface for ATVA variants.
-
-Usage:
-    python -m atva.cli <variant> <input_file> [options]
-
-Where variant is one of: atva1, atva2, atva3, atva4
-"""
+#Command-line interface for ATVA variants.
 
 from __future__ import annotations
-
 import argparse
 import sys
 from pathlib import Path
-
 from btva.models import VotingScheme
 from btva.happiness import HappinessMetric
 from btva.parsing import load_input_file
-
 from .atva1_collusion import run_atva1
 from .atva2_counter_strategic import run_atva2
 from .atva3_imperfect_knowledge import run_atva3
 from .atva4_multiple_tactical import run_atva4
-
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
@@ -122,9 +112,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     return p
 
-
+#Run ATVA-1 and print results
 def run_atva1_cli(args, parsed_input, scheme, happiness_metric):
-    """Run ATVA-1 and print results."""
     result = run_atva1(
         scheme,
         parsed_input.situation,
@@ -260,16 +249,13 @@ def run_atva4_cli(args, parsed_input, scheme, happiness_metric):
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Main entry point."""
     parser = build_parser()
     args = parser.parse_args(argv)
 
-    # Load input file
     parsed_input = load_input_file(Path(args.input))
     scheme = VotingScheme(args.scheme)
     happiness_metric = HappinessMetric(args.happiness_metric)
 
-    # Run the appropriate variant
     if args.variant == "atva1":
         run_atva1_cli(args, parsed_input, scheme, happiness_metric)
     elif args.variant == "atva2":
@@ -283,7 +269,6 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     return 0
-
 
 if __name__ == "__main__":
     sys.exit(main())
